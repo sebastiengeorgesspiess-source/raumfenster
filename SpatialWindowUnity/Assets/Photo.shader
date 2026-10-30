@@ -1,0 +1,26 @@
+Shader "Raumfenster/Photo" {
+ Properties { _MainTex("Photograph",2D)="white"{} _SBS("Side by side",Float)=0 _SwapEyes("Swap eyes",Float)=0 }
+ SubShader { Tags { "RenderType"="Opaque" } Cull Off
+ Pass {
+ CGPROGRAM
+ #pragma vertex vert
+ #pragma fragment frag
+ #pragma multi_compile_instancing
+ #include "UnityCG.cginc"
+ sampler2D _MainTex; float _SBS,_SwapEyes;
+ struct appdata { float4 vertex:POSITION;float2 uv:TEXCOORD0;UNITY_VERTEX_INPUT_INSTANCE_ID };
+ struct v2f {float4 vertex:SV_POSITION;float2 uv:TEXCOORD0;UNITY_VERTEX_OUTPUT_STEREO};
+ v2f vert(appdata v){v2f o;UNITY_SETUP_INSTANCE_ID(v);UNITY_INITIALIZE_OUTPUT(v2f,o);UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);o.vertex=UnityObjectToClipPos(v.vertex);o.uv=v.uv;return o;}
+ fixed4 frag(v2f i):SV_Target {
+ UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
+ float2 uv=i.uv; float eye=0;
+ #if defined(UNITY_SINGLE_PASS_STEREO) || defined(UNITY_STEREO_INSTANCING_ENABLED) || defined(UNITY_STEREO_MULTIVIEW_ENABLED)
+ eye=unity_StereoEyeIndex;
+ #endif
+ if(_SBS>.5){if(_SwapEyes>.5)eye=1-eye;uv.x=uv.x*.5+eye*.5;}
+ return tex2D(_MainTex,uv);
+ }
+ ENDCG
+ }
+ }
+}

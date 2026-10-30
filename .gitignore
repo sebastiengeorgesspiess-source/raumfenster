@@ -1,0 +1,13 @@
+**/Library/
+**/Temp/
+**/Logs/
+**/Obj/
+**/UserSettings/
+builds/
+*.log
+.secrets/
+spatial/source-sbs.jpg
+spatial/diagnostics/
+spatial/video/
+**/skin-documentation/
+SpatialWindowUnity/Assets/Resources/PhotoData/
