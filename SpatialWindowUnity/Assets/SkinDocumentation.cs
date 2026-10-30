@@ -66,6 +66,12 @@ public class SkinDocumentation : MonoBehaviour
         if(cameraSource==null)
         {
             try {
+                if(!XREALPlugin.IsHMDFeatureSupported(XREALSupportedFeature.XREAL_FEATURE_RGB_CAMERA))
+                {Status="Diese XREAL-Laufzeit meldet keinen RGB-Kamerazugriff";Debug.LogWarning("[Skin] RGB feature unavailable");return;}
+                Vector2Int size=Vector2Int.zero;
+                if(!XREALPlugin.GetDeviceResolution(XREALComponent.XREAL_COMPONENT_RGB_CAMERA,ref size)||size.x<=0||size.y<=0)
+                {Status="Eye-Kamera meldet noch keine gültige Auflösung · erneut versuchen";Debug.LogWarning("[Skin] Invalid RGB resolution");return;}
+                Debug.Log("[Skin] Starting RGB capture "+size);
                 cameraSource=XREALRGBCameraTexture.CreateSingleton();
                 cameraSource.OnRGBCameraUpdate+=Frame;
                 if(!cameraSource.StartCapture()){StopCamera();Status="Eye-Kamera nicht verfügbar · Anschluss prüfen";return;}
@@ -129,5 +135,6 @@ public class SkinDocumentation : MonoBehaviour
         lastFrame=-100;Show();
     }
     void OnDisable(){StopCamera();}
+    void OnApplicationPause(bool paused){if(paused){StopCamera();Status="Kamera pausiert · FOTO startet sie erneut";}}
     void OnDestroy(){if(recentTexture!=null)Destroy(recentTexture);if(olderTexture!=null)Destroy(olderTexture);Destroy(previewMaterial);Destroy(recentMaterial);Destroy(olderMaterial);}
 }

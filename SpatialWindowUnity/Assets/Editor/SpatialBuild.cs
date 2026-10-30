@@ -16,8 +16,8 @@ public static class SpatialBuild
     {
         PlayerSettings.companyName = "Sebastien";
         PlayerSettings.productName = "Raumfenster";
-        PlayerSettings.bundleVersion = "0.6.1";
-        PlayerSettings.Android.bundleVersionCode = 10;
+        PlayerSettings.bundleVersion = "0.6.2";
+        PlayerSettings.Android.bundleVersionCode = 11;
         PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Android, "ch.sebastienspiess.raumfenster");
         PlayerSettings.SetScriptingBackend(UnityEditor.Build.NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
         PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;

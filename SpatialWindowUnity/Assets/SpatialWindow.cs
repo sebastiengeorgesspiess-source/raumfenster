@@ -39,7 +39,9 @@ public class SpatialWindow : MonoBehaviour
             new GameObject("Touch input",typeof(EventSystem),typeof(StandaloneInputModule));
         view=new GameObject("Tracked eyes",typeof(Camera)).GetComponent<Camera>();
         view.tag="MainCamera"; view.clearFlags=CameraClearFlags.SolidColor;
-        view.backgroundColor=Color.black; view.nearClipPlane=.05f; view.farClipPlane=20;
+        view.backgroundColor=Color.black; view.nearClipPlane=.05f; view.farClipPlane=500;
+        view.stereoTargetEye=StereoTargetEyeMask.Both;
+        view.gameObject.AddComponent<RenderDiagnostics>();
         anchor=new GameObject("Photo origin").transform;
         BuildPhoto();
         BuildWorlds();

@@ -2,7 +2,7 @@
 
 Experimentelle Offline-Demo für **XREAL One Pro, XREAL Eye und Beam Pro** — von Sebastien Spiess.
 
-**Status: Prototyp, kein stabiles Release.** Version 0.6.1 wurde gebaut und auf dem Beam Pro installiert. Beim anschliessenden Test meldete der Nutzer eine vollständig leere Brillenansicht. Die Ursache wird untersucht. Ein erfolgreicher Build ist kein Nachweis funktionierender Brillenausgabe. Kamera, Stereo-Wiedergabe und Eye-Bewegung brauchen weitere Gerätetests.
+**Status: Prototyp, kein stabiles Release.** Version 0.6.1 wurde gebaut und auf dem Beam Pro installiert. Beim anschliessenden Test meldete der Nutzer eine vollständig leere Brillenansicht. Beim erneuten Test erschien kurz ein Bild; beim Haut-Test wurde ein Absturz bzw. eine Unterbrechung gemeldet. Die Ursache wird untersucht. Ein erfolgreicher Build ist kein Nachweis funktionierender Brillenausgabe. Kamera, Stereo-Wiedergabe und Eye-Bewegung brauchen weitere Gerätetests.
 
 ## Was das Projekt erprobt
 
@@ -46,3 +46,7 @@ Die öffentliche Fototestkarte enthält identische Ansichten und flache Tiefe; s
 Siehe [THIRD-PARTY.md](THIRD-PARTY.md). Fremdmodelle und Texturen behalten ihre jeweiligen Lizenzen. Es wird keine allgemeine Open-Source-Lizenz für sämtliche Projektbestandteile behauptet. Private Fotos, Hautaufnahmen, Videos, Zugangsdaten, SDK-Binaries und APKs sind nicht Bestandteil dieser Veröffentlichung.
 
 [Homepage und Tools](https://sebastienspiess.ch/tools/)
+
+## Diagnoseänderungen 0.6.2
+
+Die Sichtweite wurde von 20 auf 500 Meter erweitert, damit Weltraumobjekte nicht abgeschnitten werden. Dynamisch angelegte Collider werden gegen Engine-Stripping geschützt. Der Kamerastart prüft RGB-Unterstützung und Auflösung; bei App-Pause wird die Aufnahme gestoppt. Begrenzte Render-Protokolle helfen bei der weiteren Diagnose. Diese Änderungen sind noch keine bestätigte Behebung aller Brillenprobleme.
