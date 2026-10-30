@@ -13,7 +13,6 @@ public class OfflineVideo360 : MonoBehaviour
     public string Status { get; private set; }="Video wird vorbereitet";
     public bool NeedsAttention { get; private set; }=true;
     VideoPlayer player;
-    AudioSource audioSource;
     Transform dome;
     Material material;
     RenderTexture output;
@@ -29,12 +28,10 @@ public class OfflineVideo360 : MonoBehaviour
         material=new Material(Resources.Load<Material>("PhotoMaterial"));material.mainTexture=Texture2D.blackTexture;
         material.SetFloat("_SBS",StereoFlat?1:0);
         sphere.GetComponent<Renderer>().sharedMaterial=material;
-        audioSource=gameObject.AddComponent<AudioSource>();audioSource.playOnAwake=false;audioSource.spatialBlend=0;audioSource.volume=.65f;
         player=gameObject.AddComponent<VideoPlayer>();player.playOnAwake=false;player.source=VideoSource.Url;
         player.isLooping=true;player.waitForFirstFrame=true;player.skipOnDrop=true;
         player.renderMode=VideoRenderMode.RenderTexture;
-        player.audioOutputMode=VideoAudioOutputMode.AudioSource;player.controlledAudioTrackCount=1;
-        player.EnableAudioTrack(0,true);player.SetTargetAudioSource(0,audioSource);
+        player.audioOutputMode=VideoAudioOutputMode.None;player.controlledAudioTrackCount=0;
         player.prepareCompleted+=Prepared;player.frameReady+=FrameReady;player.errorReceived+=Failed;
         Begin();
     }
@@ -52,7 +49,7 @@ public class OfflineVideo360 : MonoBehaviour
         if(vp.width==0||vp.height==0||vp.width>4096||vp.height>2160){Failed(vp,"Videoformat nicht unterstützt");return;}
         output=new RenderTexture((int)vp.width,(int)vp.height,0,RenderTextureFormat.ARGB32);
         output.Create();vp.targetTexture=output;material.mainTexture=output;
-        audioSource.mute=true;vp.Play(); // Decode a first frame even when the demo starts paused.
+        vp.Play(); // Decode a first frame even when the demo starts paused.
         Debug.Log($"[Raumfenster Video] Prepared {FileName} {vp.width}x{vp.height}, audio={vp.audioTrackCount}");
     }
     void FrameReady(VideoPlayer vp,long frame)
@@ -65,16 +62,15 @@ public class OfflineVideo360 : MonoBehaviour
     void Failed(VideoPlayer vp,string error)
     {
         failed=true;NeedsAttention=true;Status="Video kann nicht abgespielt werden · andere Szene wählen";
-        if(vp!=null)vp.Stop();if(audioSource!=null)audioSource.mute=true;
+        if(vp!=null)vp.Stop();
         Debug.LogError("[Raumfenster Video] "+FileName+": "+error);
     }
     void Update()
     {
         if(player==null||failed)return;
         if(!firstFrame){if(Time.unscaledTime-prepareStarted>25)Failed(player,"Zeitüberschreitung beim Laden");return;}
-        audioSource.mute=Owner.Muted;
         if(Owner.Paused){if(player.isPlaying)player.Pause();Status="Video pausiert · FORTSETZEN zum Starten";NeedsAttention=true;}
-        else {if(!player.isPlaying)player.Play();Status=StereoFlat?"Full-SBS · 3D-Leinwand · Originalton":"Echtes 360°-Video · lokal · frei umschauen";NeedsAttention=false;}
+        else {if(!player.isPlaying)player.Play();Status=StereoFlat?"Full-SBS · 3D-Leinwand · ohne Ton":"Echtes 360°-Video · lokal · frei umschauen";NeedsAttention=false;}
     }
     void LateUpdate(){if(!StereoFlat&&dome!=null&&Camera.main!=null)dome.position=Camera.main.transform.position;}
     void OnEnable(){if(player!=null)Begin();}

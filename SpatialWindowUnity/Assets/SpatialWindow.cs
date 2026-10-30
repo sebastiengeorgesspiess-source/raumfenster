@@ -9,13 +9,12 @@ using Unity.XR.XREAL;
 
 public class SpatialWindow : MonoBehaviour
 {
-    [Serializable] class DepthData { public int width, height; public float aspect, horizontalFov; public float[] depth; public int[] valid; }
+    
     Camera view;
-    Transform anchor;
-    GameObject relief, stereo;
     GameObject forest, gallery;
     Text status, instruction, controllerLabel;
-    Button pauseButton,soundButton,contextButton;
+    Button pauseButton,contextButton,worldButton,sceneButton,medicalButton,skinButton,videoButton,resetButton;
+    bool heartDragging; Vector2 lastDragPosition;
     XREALVirtualController controller;
     GameObject controls;
     SpaceFlight flight;
@@ -29,7 +28,6 @@ public class SpatialWindow : MonoBehaviour
     bool centered, trackingReady;
     int mode=2;
     float pressedAt, lastAction=-1;
-    const float MovementLimit=.18f;
 
     void Start()
     {
@@ -42,8 +40,6 @@ public class SpatialWindow : MonoBehaviour
         view.backgroundColor=Color.black; view.nearClipPlane=.05f; view.farClipPlane=500;
         view.stereoTargetEye=StereoTargetEyeMask.Both;
         view.gameObject.AddComponent<RenderDiagnostics>();
-        anchor=new GameObject("Photo origin").transform;
-        BuildPhoto();
         BuildWorlds();
         flight=new GameObject("Weltraumflug").AddComponent<SpaceFlight>();
         flight.gameObject.SetActive(false);
@@ -65,45 +61,6 @@ public class SpatialWindow : MonoBehaviour
         label.fontSize=size; label.alignment=TextAnchor.MiddleCenter;
         label.color=new Color(.68f,.94f,1); label.text=text; label.raycastTarget=false;
         return label;
-    }
-    void BuildPhoto()
-    {
-        var data=JsonUtility.FromJson<DepthData>(Resources.Load<TextAsset>("PhotoData/depth").text);
-        var verts=new Vector3[data.width*data.height]; var uv=new Vector2[verts.Length];
-        float half=Mathf.Tan(data.horizontalFov*Mathf.Deg2Rad/2);
-        for(int y=0;y<data.height;y++) for(int x=0;x<data.width;x++)
-        {
-            int i=y*data.width+x; float u=(float)x/(data.width-1),v=(float)y/(data.height-1),z=data.depth[i];
-            verts[i]=new Vector3((u-.5f)*2*half*z,(.5f-v)*2*half*z/data.aspect,z);
-            uv[i]=new Vector2(u,1-v);
-        }
-        var triangles=new List<int>();
-        void Triangle(int a,int b,int c)
-        {
-            if(data.valid[a]==0||data.valid[b]==0||data.valid[c]==0) return;
-            float min=Mathf.Min(data.depth[a],Mathf.Min(data.depth[b],data.depth[c]));
-            float max=Mathf.Max(data.depth[a],Mathf.Max(data.depth[b],data.depth[c]));
-            if(max-min>.22f) return; // Do not stretch photograph across depth discontinuities.
-            triangles.Add(a);triangles.Add(b);triangles.Add(c);
-        }
-        for(int y=0;y<data.height-1;y++) for(int x=0;x<data.width-1;x++)
-        {int a=y*data.width+x;Triangle(a,a+1,a+data.width);Triangle(a+1,a+data.width+1,a+data.width);}
-        var mesh=new Mesh{name="Stereo-derived relief"};mesh.vertices=verts;mesh.uv=uv;mesh.triangles=triangles.ToArray();mesh.RecalculateBounds();
-        relief=new GameObject("Relative depth experiment",typeof(MeshFilter),typeof(MeshRenderer));
-        relief.transform.SetParent(anchor,false);relief.GetComponent<MeshFilter>().mesh=mesh;
-        relief.GetComponent<MeshRenderer>().material=PhotoMaterial("left",false);
-        stereo=GameObject.CreatePrimitive(PrimitiveType.Quad);Destroy(stereo.GetComponent<Collider>());
-        stereo.name="Original stereo photograph";stereo.transform.SetParent(anchor,false);
-        stereo.transform.localPosition=new Vector3(0,0,2.5f);
-        stereo.transform.localScale=new Vector3(5*half,5*half/data.aspect,1);
-        stereo.GetComponent<MeshRenderer>().material=PhotoMaterial("stereo",true);
-        Debug.Log($"[Raumfenster] Mesh {verts.Length} vertices, {triangles.Count/3} triangles");
-    }
-    Material PhotoMaterial(string texture,bool sbs)
-    {
-        var mat=new Material(Resources.Load<Material>("PhotoMaterial"));
-        mat.mainTexture=Resources.Load<Texture2D>("PhotoData/"+texture);mat.SetFloat("_SBS",sbs?1:0);
-        return mat;
     }
     void BuildWorlds()
     {
@@ -143,46 +100,43 @@ public class SpatialWindow : MonoBehaviour
         }
         Shape("Floating study",PrimitiveType.Sphere,new Vector3(0,.1f,3),Vector3.one*.65f,cyan);
         Shape("Pedestal",PrimitiveType.Cylinder,new Vector3(0,-1,3),new Vector3(.9f,.5f,.9f),pale);
-        var art=GameObject.CreatePrimitive(PrimitiveType.Quad);Destroy(art.GetComponent<Collider>());
-        art.name="Your photograph";art.transform.SetParent(gallery.transform,false);
-        art.transform.localPosition=new Vector3(0,.15f,4.7f);art.transform.localScale=new Vector3(2.4f,1.8f,1);
-        art.GetComponent<MeshRenderer>().material=PhotoMaterial("left",false);
+
     }
     void Update()
     {
         if(exiting)return;
         BindController();Track();
         if(Input.GetKeyDown(KeyCode.Escape)){ExitDemo();return;}
-        view.farClipPlane=mode==4?200:20;
+        view.farClipPlane=mode==4?500:20;
         if(Input.GetKeyDown(KeyCode.Space)) Toggle();
         if(Input.GetKeyDown(KeyCode.R)) Recenter();
         PollMenuTouch();
         if(exiting)return;
         PollTrigger();
-        float distance=centered?Vector3.Distance(view.transform.position,origin):0;
-        bool rangeOk=distance<MovementLimit;
-        relief.SetActive(centered&&mode==0&&trackingReady&&rangeOk);
-        stereo.SetActive(centered&&mode==1);
         forest.SetActive(centered&&mode==2);
         gallery.SetActive(centered&&mode==3&&trackingReady);
         flight.gameObject.SetActive(centered&&mode==4&&(!flight.NeedsPosition||trackingReady));
         RenderSettings.ambientLight=mode==4?new Color(.065f,.07f,.09f):new Color(.45f,.5f,.58f);
         forest.transform.position=view.transform.position; // Panorama: rotation only, never pretend it is reconstructed geometry.
         if(!centered) status.text="RAUMFENSTER · Warte auf Brille und Kopfverfolgung";
-        else if((mode==0||mode==3)&&!trackingReady) status.text="Keine Positionsverfolgung · Eye prüfen oder Panorama wählen";
-        else if(mode==0&&!rangeOk) status.text="Bitte zur Mitte zurück · oder Taste 1 Sekunde zum Zentrieren halten";
-        else if(mode==0) status.text=$"TIEFENSZENE · {distance*100:0} / 18 cm · experimentelle Geometrie";
-        else if(mode==1) status.text="ORIGINAL · Stereo-Foto · fester Aufnahmeblickwinkel";
+        else if(mode==3&&!trackingReady) status.text="Keine Positionsverfolgung · Eye prüfen oder Panorama wählen";
         else if(mode==2) status.text="WALD · 360°-Panorama · Umschauen ohne räumliche Bewegung";
         else if(mode==3) status.text="LICHTGALERIE · echte 3D-Geometrie · 6DoF";
         else status.text=flight.NeedsPosition&&!trackingReady?"EYE · Keine Positionsverfolgung verfügbar":flight.Title+" · "+flight.Hint;
         instruction.text=mode==3?"Freie Fläche nötig · kein Hindernisschutz":"Am Beam Pro: Nächste Welt oder Zentrieren";
-        bool showInfo=(mode==4&&flight.IsSkin)||(mode==4&&flight.IsVideo&&(flight.ActiveVideo==null||flight.ActiveVideo.NeedsAttention))||(mode==4&&flight.NeedsPosition&&!trackingReady)||Time.unscaledTime-lastAction<8||!centered||((mode==0||mode==3)&&!trackingReady)||(mode==0&&!rangeOk);
+        bool showInfo=(mode==4&&(flight.IsSkin||flight.IsMedical))||(mode==4&&flight.IsVideo&&(flight.ActiveVideo==null||flight.ActiveVideo.NeedsAttention))||(mode==4&&flight.NeedsPosition&&!trackingReady)||Time.unscaledTime-lastAction<8||!centered||(mode==3&&!trackingReady);
         status.gameObject.SetActive(showInfo);instruction.gameObject.SetActive(showInfo);
         if(contextButton!=null)contextButton.GetComponentInChildren<Text>().text=mode==4&&flight.IsSkin?"FOTO · KAMERA / SPEICHERN":mode==4&&flight.IsMedical?"MODELL VERGRÖSSERN":mode==4&&flight.IsVideo?"LINKES / RECHTES AUGE TAUSCHEN":"TEMPO WECHSELN · "+flight.FlightSpeed.ToString("0.0")+"x";
         if(pauseButton!=null)pauseButton.GetComponentInChildren<Text>().text=mode==4&&flight.IsSkin?"LIVE / FOTO-VERGLEICH":flight.Paused?"BEWEGUNG: PAUSE · FORTSETZEN":"BEWEGUNG: AN · PAUSIEREN";
-        if(soundButton!=null)soundButton.GetComponentInChildren<Text>().text=flight.Muted?"TON: AUS · EINSCHALTEN":"TON: AN · AUSSCHALTEN";
-        if(controllerLabel!=null) controllerLabel.text="RAUMFENSTER\n"+new[]{"Tiefenszene","Originalfoto","Wald 360°","Lichtgalerie 3D",flight.Title}[mode]+(mode==4?"\n"+(trackingReady?"Eye: Position aktiv · "+(Vector3.Distance(view.transform.position,origin)*100).ToString("0")+" cm":"Nur Kopfrotation")+" · Ton "+(flight.Muted?"AUS":"AN"):" ");
+        bool heartMode=mode==4&&flight.IsMedical;
+        SetButton(worldButton,heartMode?"ZURÜCK ZUR DEMO":"NÄCHSTE WELT");
+        SetButton(sceneButton,heartMode?"HIER ZIEHEN · HERZ DREHEN":"DEMO · NÄCHSTE SZENE");
+        SetButton(medicalButton,heartMode?"NÄCHSTER HERZTEIL":"HERZ · INTERAKTIV");
+        SetButton(skinButton,heartMode?"TEILE AUSEINANDER / ZUSAMMEN":"HAUT · DOKUMENTATION");
+        SetButton(videoButton,heartMode?"AUSWAHL EINZELN / ALLES":"BIENEN · 3D-VIDEO");
+        SetButton(resetButton,heartMode?"HERZ ZURÜCKSETZEN":"WALD · PANORAMA");
+        if(heartMode){SetButton(pauseButton,flight.Paused?"AUTO-DREHUNG STARTEN":"AUTO-DREHUNG STOPPEN");instruction.text="Am Beam Pro im Drehfeld ziehen · oder Eye-Gestenzeiger verwenden";}
+        if(controllerLabel!=null) controllerLabel.text="RAUMFENSTER\n"+(mode==2?"Wald 360°":mode==3?"Lichtgalerie 3D":flight.Title)+(mode==4?"\n"+(trackingReady?"Eye: Position aktiv · "+(Vector3.Distance(view.transform.position,origin)*100).ToString("0")+" cm":"Nur Kopfrotation"):" ");
     }
     void Track()
     {
@@ -201,7 +155,7 @@ public class SpatialWindow : MonoBehaviour
     void Recenter()
     {
         lastAction=Time.unscaledTime;
-        origin=view.transform.position;anchor.SetPositionAndRotation(origin,view.transform.rotation);
+        origin=view.transform.position;
         var yaw=Quaternion.Euler(0,view.transform.eulerAngles.y,0);
         if(gallery!=null)gallery.transform.SetPositionAndRotation(origin,yaw);
         if(forest!=null)forest.transform.rotation=yaw;
@@ -211,7 +165,7 @@ public class SpatialWindow : MonoBehaviour
     void Toggle()
     {
         if(Time.unscaledTime-lastAction<.3f)return;
-        lastAction=Time.unscaledTime;mode=(mode+1)%5;Recenter();
+        lastAction=Time.unscaledTime;mode=mode==2?3:mode==3?4:2;Recenter();
         Debug.Log("[Raumfenster] Mode="+mode);
     }
     void BindController()
@@ -234,20 +188,18 @@ public class SpatialWindow : MonoBehaviour
         controls.GetComponent<Image>().color=new Color(.025f,.05f,.08f,.98f);
         controllerLabel=Label(controls.transform,"RAUMFENSTER",34,Vector2.zero);
         controllerLabel.rectTransform.anchorMin=new Vector2(0,.85f);controllerLabel.rectTransform.anchorMax=new Vector2(1,1);controllerLabel.rectTransform.offsetMin=controllerLabel.rectTransform.offsetMax=Vector2.zero;
-        ControlButton("NÄCHSTE WELT",.755f,.825f,()=>Toggle());
+        worldButton=ControlButton("NÄCHSTE WELT",.755f,.825f,()=>{if(mode==4&&flight.IsMedical){mode=2;Recenter();}else Toggle();});
         ControlButton("ZENTRIEREN",.68f,.75f,()=>Recenter());
-        ControlButton("DEMO · NÄCHSTE SZENE",.605f,.675f,()=>{if(mode==4)flight.NextExperiment();else flight.Select(0);mode=4;Recenter();});
-        ControlButton("EYE · MEDIZIN / STRUKTUR",.53f,.60f,()=>{if(mode==4&&flight.IsMedical&&flight.ActiveMedical!=null){flight.ActiveMedical.NextStructure();lastAction=Time.unscaledTime;}else {flight.Select(6);mode=4;Recenter();}});
-        ControlButton("HAUT · DOKUMENTATION",.455f,.525f,()=>{flight.Select(7);mode=4;Recenter();});
+        sceneButton=ControlButton("DEMO · NÄCHSTE SZENE",.605f,.675f,()=>{if(mode==4&&flight.IsMedical)return;if(mode==4)flight.NextExperiment();else flight.Select(0);mode=4;Recenter();});
+        medicalButton=ControlButton("HERZ · INTERAKTIV",.53f,.60f,()=>{if(mode==4&&flight.IsMedical&&flight.ActiveMedical!=null){flight.ActiveMedical.NextStructure();lastAction=Time.unscaledTime;}else {flight.Select(6);mode=4;Recenter();}});
+        skinButton=ControlButton("HAUT · DOKUMENTATION",.455f,.525f,()=>{if(mode==4&&flight.IsMedical){flight.ActiveMedical?.ToggleExploded();lastAction=Time.unscaledTime;return;}flight.Select(7);mode=4;Recenter();});
         contextButton=ControlButton("TEMPO WECHSELN",.38f,.45f,()=>{if(mode!=4)return;if(flight.IsSkin)flight.ActiveSkin?.Capture();else if(flight.IsMedical)flight.ActiveMedical?.ChangeScale();else if(flight.IsVideo)flight.ActiveVideo?.SwapEyes();else flight.ChangeSpeed();});
-        ControlButton("BIENEN · 3D-VIDEO",.305f,.375f,()=>{flight.Select(5);mode=4;Recenter();});
+        videoButton=ControlButton("BIENEN · 3D-VIDEO",.305f,.375f,()=>{if(mode==4&&flight.IsMedical){flight.ActiveMedical?.ToggleIsolation();lastAction=Time.unscaledTime;return;}flight.Select(5);mode=4;Recenter();});
         ControlButton("APP VERLASSEN",.23f,.30f,ExitDemo);
         var pause=ControlButton("BEWEGUNG: AN · PAUSIEREN",.155f,.225f,()=>{});
         pauseButton=pause;
         pause.onClick.AddListener(()=>{if(mode==4&&flight.IsSkin){flight.ActiveSkin?.ToggleComparison();return;}flight.Paused=!flight.Paused;pause.GetComponentInChildren<Text>().text=mode==4&&flight.IsSkin?"LIVE / FOTO-VERGLEICH":flight.Paused?"BEWEGUNG: PAUSE · FORTSETZEN":"BEWEGUNG: AN · PAUSIEREN";});
-        var sound=ControlButton("TON: AN · AUSSCHALTEN",.08f,.15f,()=>{});
-        soundButton=sound;
-        sound.onClick.AddListener(()=>{flight.Muted=!flight.Muted;sound.GetComponentInChildren<Text>().text=flight.Muted?"TON: AUS · EINSCHALTEN":"TON: AN · AUSSCHALTEN";lastAction=Time.unscaledTime;});
+        resetButton=ControlButton("WALD · PANORAMA",.08f,.15f,()=>{if(mode==4&&flight.IsMedical){flight.ActiveMedical?.ResetModel();Recenter();}else {mode=2;Recenter();}});
         foreach(var native in controller.GetComponentsInChildren<XREALButton>(true))
         {
             if(native.name!="Home")continue;
@@ -273,6 +225,7 @@ public class SpatialWindow : MonoBehaviour
         var text=Label(obj.transform,title,32,Vector2.zero);text.rectTransform.anchorMin=Vector2.zero;text.rectTransform.anchorMax=Vector2.one;text.rectTransform.offsetMin=text.rectTransform.offsetMax=Vector2.zero;
         button.onClick.AddListener(()=>Debug.Log("[Raumfenster] Touch="+title));return button;
     }
+    void SetButton(Button b,string text){if(b!=null){var label=b.GetComponentInChildren<Text>();if(label.text!=text)label.text=text;}}
     void ExitDemo()
     {
         if(exiting)return;
@@ -282,19 +235,23 @@ public class SpatialWindow : MonoBehaviour
     void PollMenuTouch()
     {
         // Read the Android screen directly as a fallback for XR's UI event routing.
-        Vector2 position; bool began,ended,canceled;
+        Vector2 position; bool began,ended,canceled,held;
         if(Input.touchCount>0)
         {
             var touch=Input.GetTouch(0);position=touch.position;
-            began=touch.phase==TouchPhase.Began;ended=touch.phase==TouchPhase.Ended;canceled=touch.phase==TouchPhase.Canceled;
+            began=touch.phase==TouchPhase.Began;ended=touch.phase==TouchPhase.Ended;canceled=touch.phase==TouchPhase.Canceled;held=!ended&&!canceled;
         }
         else
         {
             var screen=UnityEngine.InputSystem.Touchscreen.current;
-            if(screen==null)return;
-            var touch=screen.primaryTouch;position=touch.position.ReadValue();
-            began=touch.press.wasPressedThisFrame;ended=touch.press.wasReleasedThisFrame;
-            canceled=touch.phase.ReadValue()==UnityEngine.InputSystem.TouchPhase.Canceled;
+            if(screen!=null&&(screen.primaryTouch.press.isPressed||screen.primaryTouch.press.wasReleasedThisFrame)){
+                var touch=screen.primaryTouch;position=touch.position.ReadValue();
+                began=touch.press.wasPressedThisFrame;ended=touch.press.wasReleasedThisFrame;
+                canceled=touch.phase.ReadValue()==UnityEngine.InputSystem.TouchPhase.Canceled;held=touch.press.isPressed;
+            }else{
+                var mouse=UnityEngine.InputSystem.Mouse.current;if(mouse==null){heartDragging=false;return;}
+                position=mouse.position.ReadValue();began=mouse.leftButton.wasPressedThisFrame;ended=mouse.leftButton.wasReleasedThisFrame;held=mouse.leftButton.isPressed;canceled=false;
+            }
         }
         if(began)
         {
@@ -302,7 +259,12 @@ public class SpatialWindow : MonoBehaviour
             foreach(var button in menuButtons)
                 if(RectTransformUtility.RectangleContainsScreenPoint((RectTransform)button.transform,position,null))
                 {pressedMenuButton=button;break;}
+            heartDragging=mode==4&&flight.IsMedical&&pressedMenuButton==sceneButton;lastDragPosition=position;
             Debug.Log($"[Raumfenster] Screen touch {position}; target={pressedMenuButton?.name}; screen={Screen.width}x{Screen.height}");
+        }
+        if(heartDragging){
+            if(held&&mode==4&&flight.IsMedical){var delta=position-lastDragPosition;flight.ActiveMedical?.Drag(new Vector2(delta.x/Mathf.Max(1,Screen.width),delta.y/Mathf.Max(1,Screen.height)));lastDragPosition=position;lastAction=lastMenuAction=Time.unscaledTime;}
+            if(ended||canceled||!held){heartDragging=false;pressedMenuButton=null;lastMenuAction=Time.unscaledTime;}return;
         }
         if(ended&&!canceled&&pressedMenuButton!=null)
         {
@@ -333,6 +295,6 @@ public class SpatialWindow : MonoBehaviour
     void Up(XREALButtonType type,GameObject target,PointerEventData data)
     {if(type==XREALButtonType.TriggerButton)uiHeld=false;}
     void Unbind(){if(controller!=null){controller.pointerDown-=Down;controller.pointerUp-=Up;}}
-    void OnApplicationPause(bool paused){uiHeld=previousHeld=false;holdDone=false;pressedMenuButton=null;if(!paused)centered=false;}
+    void OnApplicationPause(bool paused){heartDragging=false;uiHeld=previousHeld=false;holdDone=false;pressedMenuButton=null;if(!paused)centered=false;}
     void OnDestroy(){Unbind();Application.onBeforeRender-=Track;}
 }

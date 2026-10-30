@@ -16,8 +16,8 @@ public static class SpatialBuild
     {
         PlayerSettings.companyName = "Sebastien";
         PlayerSettings.productName = "Raumfenster";
-        PlayerSettings.bundleVersion = "0.6.2";
-        PlayerSettings.Android.bundleVersionCode = 11;
+        PlayerSettings.bundleVersion = "0.7.0";
+        PlayerSettings.Android.bundleVersionCode = 12;
         PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Android, "ch.sebastienspiess.raumfenster");
         PlayerSettings.SetScriptingBackend(UnityEditor.Build.NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
         PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
@@ -88,20 +88,6 @@ public static class SpatialBuild
             AssetDatabase.CreateAsset(new Material(Shader.Find("Standard")), "Assets/Resources/WorldMaterial.mat");
         if (AssetDatabase.LoadAssetAtPath<Material>("Assets/Resources/StarMaterial.mat") == null)
             AssetDatabase.CreateAsset(new Material(Shader.Find("Sprites/Default")), "Assets/Resources/StarMaterial.mat");
-        var panoramaShader=Shader.Find("Raumfenster/ImmersivePanorama");
-        if(panoramaShader==null)throw new Exception("Immersive panorama shader missing");
-        if(AssetDatabase.LoadAssetAtPath<Material>("Assets/Resources/PanoramaMaterial.mat")==null)
-            AssetDatabase.CreateAsset(new Material(panoramaShader),"Assets/Resources/PanoramaMaterial.mat");
-        foreach(string file in new[]{"cyberpunk.png"})
-        {
-            var path="Assets/Resources/ImmersiveData/"+file;
-            var texture=AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-            if(texture==null||texture.width!=texture.height*2)throw new Exception("Invalid panorama: "+file);
-            var importer=(TextureImporter)AssetImporter.GetAtPath(path);
-            importer.maxTextureSize=4096;importer.mipmapEnabled=true;importer.npotScale=TextureImporterNPOTScale.None;
-            importer.wrapMode=TextureWrapMode.Repeat;importer.textureCompression=TextureImporterCompression.Compressed;
-            importer.SaveAndReimport();
-        }
         var forestImporter = (TextureImporter)AssetImporter.GetAtPath("Assets/Resources/WorldData/forest.jpg");
         if (forestImporter == null) throw new Exception("Forest panorama missing");
         forestImporter.maxTextureSize = 4096; forestImporter.mipmapEnabled = true;
@@ -118,7 +104,6 @@ public static class SpatialBuild
             importer.textureCompression = TextureImporterCompression.Compressed;
             importer.wrapMode = TextureWrapMode.Repeat; importer.SaveAndReimport();
         }
-        foreach (string texturePath in new[] { "Assets/Resources/PhotoData/left.jpg", "Assets/Resources/PhotoData/stereo.jpg" }) { var importer = (TextureImporter)AssetImporter.GetAtPath(texturePath); importer.maxTextureSize = 4096; importer.mipmapEnabled = true; importer.textureCompression = TextureImporterCompression.Uncompressed; importer.wrapMode = TextureWrapMode.Clamp; importer.SaveAndReimport(); }
         if(AssetDatabase.LoadAssetAtPath<Material>("Assets/Resources/AtmosphereMaterial.mat")==null)
             AssetDatabase.CreateAsset(new Material(Shader.Find("Raumfenster/Atmosphere")),"Assets/Resources/AtmosphereMaterial.mat");
         if(AssetDatabase.LoadAssetAtPath<Material>("Assets/Resources/SkinCameraMaterial.mat")==null)
